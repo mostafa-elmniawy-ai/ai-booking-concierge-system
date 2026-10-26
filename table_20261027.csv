@@ -1,0 +1,8 @@
+File,Description
+01_Main_Agentic_Bot.json,"The core brain. Handles conversations, decides actions, and enforces business rules."
+02_Demo_Bot_Instant_Booking.json,A lightweight version for basic demos (no payment required).
+03_Basic_Bot_No_Deposit.json,Standard booking bot without the payment gateway dependency.
+04_Paymob_Payment_Webhook.json,"Listens for real payment confirmations from Paymob, updates DB, notifies user."
+05_Paymob_Link_Generator.json,Triggered by the AI to generate secure Paymob checkout links.
+06_Booking_Reminders.json,Automated Cron job that sends reminders 24 hours before appointment.
+07_Followup_Scheduler.json,Autonomous follow-up engine for users who abandoned the booking process.
