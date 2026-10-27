@@ -1,0 +1,226 @@
+{
+  "name": "Booking Reminders (24h)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "ab8c5b65-1cd3-42df-9eef-4b48c9c1b696",
+      "name": "Every Day 10 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "cykcsuebotiegggnylua",
+        "tableId": "bot_bookings",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "booking_date",
+              "condition": "eq",
+              "keyValue": "={{ $now.setZone('Africa/Cairo').plus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "keyName": "reminder_sent",
+              "condition": "eq",
+              "keyValue": "false"
+            },
+            {
+              "keyName": "status",
+              "condition": "neq",
+              "keyValue": "cancelled"
+            }
+          ]
+        }
+      },
+      "id": "a5d57e55-4d49-4e48-b5a7-f57fd2caeec6",
+      "name": "Get Tomorrow Bookings",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "x1x5RWEJu3EPALYq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "chat-not-empty",
+              "leftValue": "={{ $json.customer_chat_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "30d57fbe-eed8-40f9-af13-16631257572b",
+      "name": "Has Telegram Chat",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.customer_chat_id }}",
+        "text": "={{ (() => { const h = parseInt($json.booking_time.slice(0, 2)); const m = $json.booking_time.slice(3, 5); const p = h === 12 ? 'ظهرًا' : (h > 12 ? 'م' : 'ص'); const h12 = (h % 12) || 12; return 'أهلاً ' + $json.customer_name + '، فاكرينك بكرة الساعة ' + h12 + ':' + m + ' ' + p + ' في عيادة نور دينتست. لو مش هتقدر تيجي ابعتلنا هنا وهنعدل الميعاد. في انتظارك!'; })() }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "b8595a1c-3395-4dac-b71f-e103262c560f",
+      "name": "Send Reminder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        0
+      ],
+      "webhookId": "eea3a937-be59-4098-9a17-639f1ee5d67f",
+      "credentials": {
+        "telegramApi": {
+          "id": "IBAPbcvpu6ADiNNO",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "update",
+        "projectRef": "cykcsuebotiegggnylua",
+        "tableId": "bot_bookings",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Has Telegram Chat').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "reminder_sent",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "id": "4bae17f8-6383-457a-a98a-d8b160ac3657",
+      "name": "Mark Reminder Sent",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        896,
+        0
+      ],
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "x1x5RWEJu3EPALYq",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every Day 10 AM": {
+      "main": [
+        [
+          {
+            "node": "Get Tomorrow Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Tomorrow Bookings": {
+      "main": [
+        [
+          {
+            "node": "Has Telegram Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Telegram Chat": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "Africa/Cairo",
+    "availableInMCP": true
+  },
+  "versionId": "f6dece35-6054-49d6-bf37-44e5351dd6f1",
+  "meta": {
+    "instanceId": "9e0ca3ab7d4a631ae6c6db70b59d4f4a6de2a6d60f3ff3db6ea41bbba5edf156"
+  },
+  "nodeGroups": [],
+  "id": "VhSOAkpjvcbFpJZP",
+  "tags": []
+}

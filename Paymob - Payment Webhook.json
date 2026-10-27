@@ -1,0 +1,1054 @@
+{
+  "name": "Paymob - Payment Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "paymob-payment-callback",
+        "options": {}
+      },
+      "id": "4e3d91b7-34c5-41a0-b856-3a5ee63ead85",
+      "name": "Paymob Callback",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "4a7f05fa-da4a-4662-8259-05b4d1e56622"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "w-1",
+              "name": "hmac_secret",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.PAYMOB_HMAC_SECRET; } catch (x) { e = undefined; } try { v = $vars.PAYMOB_HMAC_SECRET; } catch (x) { v = undefined; } return e || v || \"PASTE_PAYMOB_HMAC_SECRET\"; })() }}"
+            },
+            {
+              "id": "w-2",
+              "name": "owner_chat_id",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.OWNER_CHAT_ID; } catch (x) { e = undefined; } try { v = $vars.OWNER_CHAT_ID; } catch (x) { v = undefined; } return e || v || \"5568245640\"; })() }}"
+            },
+            {
+              "id": "w-3",
+              "name": "clinic_name",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.CLINIC_NAME; } catch (x) { e = undefined; } try { v = $vars.CLINIC_NAME; } catch (x) { v = undefined; } return e || v || \"عيادة نور دنتيست\"; })() }}"
+            },
+            {
+              "id": "w-4",
+              "name": "clinic_phone",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.CLINIC_PHONE; } catch (x) { e = undefined; } try { v = $vars.CLINIC_PHONE; } catch (x) { v = undefined; } return e || v || \"01092837405\"; })() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f20862f0-620a-4c5d-9b3b-fb90fbe286ed",
+      "name": "Client Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ],
+      "notes": "WHITE-LABEL SWITCH for this workflow. Reads $env, then $vars, then falls back to the placeholder. On n8n Cloud paste the real values here or create Variables (Pro)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst req = $('Paymob Callback').first().json;\nconst body = req.body || {};\nconst obj = body.obj || {};\nconst received = String((req.query && req.query.hmac) || body.hmac || '').toLowerCase();\nconst secret = String($('Client Config').first().json.hmac_secret || '');\nconst get = (o, p) => p.split('.').reduce((a, k) => (a === undefined || a === null) ? undefined : a[k], o);\nconst fields = ['amount_cents', 'created_at', 'currency', 'error_occured', 'has_parent_transaction', 'id', 'integration_id', 'is_3d_secure', 'is_auth', 'is_capture', 'is_refunded', 'is_standalone_payment', 'is_voided', 'order.id', 'owner', 'pending', 'source_data.pan', 'source_data.sub_type', 'source_data.type', 'success'];\nconst joined = fields.map(f => { const v = get(obj, f); return (v === undefined || v === null) ? '' : String(v); }).join('');\nlet valid = false;\nif (secret && secret.indexOf('PASTE_') !== 0 && received) {\n  try {\n    const calc = crypto.createHmac('sha512', secret).update(joined).digest('hex');\n    const a = Buffer.from(calc, 'hex');\n    const b = Buffer.from(received, 'hex');\n    valid = a.length === b.length && b.length > 0 && crypto.timingSafeEqual(a, b);\n  } catch (e) {\n    valid = false;\n  }\n}\nconst extras = (obj.payment_key_claims && obj.payment_key_claims.extra) || {};\nconst items = Array.isArray(extras.items) ? extras.items : [];\nconst amountOk = Math.round(Number(obj.amount_cents)) === Math.round(Number(extras.amount_egp) * 100);\nconst success = obj.success === true;\nconst pending = obj.pending === true;\nconst voided = obj.is_voided === true;\nconst refunded = obj.is_refunded === true;\nconst chatId = String(extras.chat_id || '');\nlet outcome = 'ignore';\nif (valid && chatId) {\n  if (success && !pending && !voided && !refunded) {\n    outcome = (amountOk && items.length > 0) ? 'paid' : 'mismatch';\n  } else if (!success && !pending) {\n    outcome = 'failed';\n  }\n}\nreturn [{ json: {\n  outcome: outcome,\n  hmac_valid: valid,\n  txn_id: obj.id,\n  amount_cents: obj.amount_cents,\n  reference: (obj.order && obj.order.merchant_order_id) || null,\n  chat_id: chatId,\n  extras: extras\n} }];"
+      },
+      "id": "b7ecf3a1-7f16-4c29-a8fe-028bcef87f4e",
+      "name": "Verify HMAC & Parse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.outcome }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "paid"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.outcome }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "failed"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.outcome }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "mismatch"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "ignore"
+        }
+      },
+      "id": "826f7226-492c-4c8d-bc20-40fedf04880c",
+      "name": "Route Outcome",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const v = $('Verify HMAC & Parse').first().json;\nconst x = v.extras || {};\nconst items = Array.isArray(x.items) ? x.items : [];\nreturn items.map(i => ({ json: {\n  kind: x.kind || 'new',\n  chat_id: v.chat_id,\n  customer_name: x.customer_name,\n  customer_phone: x.customer_phone,\n  txn_id: v.txn_id,\n  reference: v.reference,\n  amount_egp: x.amount_egp,\n  service_id: i.service_id,\n  service_name: i.service_name,\n  booking_id: i.booking_id || null,\n  booking_date: i.booking_date,\n  booking_time: i.booking_time,\n  deposit_amount: i.deposit_amount,\n  deposit_total: i.deposit_total || null\n} }));"
+      },
+      "id": "c9bad999-3ac1-4a0c-8c21-6972a13aed0d",
+      "name": "Expand Bookings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "topup"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a3631843-96da-4bc2-8ba1-67ed92e9d486",
+      "name": "Is Top-up?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "update",
+        "projectRef": "cykcsuebotiegggnylua",
+        "tableId": "bot_bookings",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.booking_id }}"
+            },
+            {
+              "keyName": "customer_chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.chat_id }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "neq",
+              "keyValue": "cancelled"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "service_id",
+              "fieldValue": "={{ $json.service_id }}"
+            },
+            {
+              "fieldId": "deposit_amount",
+              "fieldValue": "={{ $json.deposit_total }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "confirmed"
+            },
+            {
+              "fieldId": "payment_status",
+              "fieldValue": "paid"
+            },
+            {
+              "fieldId": "buttons_sent",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "id": "c5c0d112-9b32-437f-b28e-e71e96ce3766",
+      "name": "Apply Top-up To Booking",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        -400
+      ],
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "x1x5RWEJu3EPALYq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $(\"Expand Bookings\").first().json.chat_id }}",
+        "text": "=✅ تم استلام {{ $(\"Expand Bookings\").first().json.amount_egp }} جنيه وتم تحديث خدمة حجزك رقم {{ $(\"Expand Bookings\").first().json.booking_id }}.\nحجزك مؤكد، في انتظارك في {{ $(\"Client Config\").first().json.clinic_name }} 🦷",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "d0fe8f09-b881-4e0c-aaba-4dcbd7b64172",
+      "name": "Notify Customer Top-up",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -480
+      ],
+      "webhookId": "f04fa176-f11c-4c3d-b7f5-6f4433b44454",
+      "credentials": {
+        "telegramApi": {
+          "id": "IBAPbcvpu6ADiNNO",
+          "name": "Telegram account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $(\"Client Config\").first().json.owner_chat_id }}",
+        "text": "=🔄 تغيير خدمة مع دفع فرق العربون\nالحجز #{{ $(\"Expand Bookings\").first().json.booking_id }}\nالاسم: {{ $(\"Expand Bookings\").first().json.customer_name }}\nالموبايل: {{ $(\"Expand Bookings\").first().json.customer_phone }}\nالخدمة الجديدة: {{ $(\"Expand Bookings\").first().json.service_name }}\nالمدفوع الآن: {{ $(\"Expand Bookings\").first().json.amount_egp }} جنيه\nإجمالي العربون: {{ $(\"Expand Bookings\").first().json.deposit_total }} جنيه\nPaymob txn: {{ $(\"Expand Bookings\").first().json.txn_id }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "98a98913-6af0-4594-ae0c-240414d7d057",
+      "name": "Alert Owner - Top-up Paid",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1920,
+        -480
+      ],
+      "webhookId": "712f0f29-6b75-42a6-bc04-5d5acbe4974b",
+      "credentials": {
+        "telegramApi": {
+          "id": "g05zrqKFAS5Gz8aU",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "cykcsuebotiegggnylua",
+        "tableId": "bot_bookings",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "booking_date",
+              "condition": "eq",
+              "keyValue": "={{ $json.booking_date }}"
+            },
+            {
+              "keyName": "booking_time",
+              "condition": "eq",
+              "keyValue": "={{ $json.booking_time }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "neq",
+              "keyValue": "cancelled"
+            }
+          ]
+        }
+      },
+      "id": "2f1852d0-4a12-4e07-9bc8-fefab5217b79",
+      "name": "Check Slot",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        0
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "x1x5RWEJu3EPALYq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const bookings = $('Expand Bookings').all().map(i => i.json);\nconst rows = $input.all().map(i => i.json).filter(r => r && r.id !== undefined && r.id !== null && String(r.status || '').toLowerCase() !== 'cancelled');\nreturn bookings.map(b => {\n  const hit = rows.find(r => String(r.booking_date).slice(0, 10) === b.booking_date && String(r.booking_time).slice(0, 5) === b.booking_time);\n  const state = !hit ? 'free' : (String(hit.customer_chat_id || '') === String(b.chat_id) ? 'duplicate' : 'conflict');\n  return { json: Object.assign({}, b, { slot_state: state }) };\n});"
+      },
+      "id": "598d7cd2-4e93-4e95-9ddd-4f940df64e61",
+      "name": "Decide Slot State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.slot_state }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "free"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.slot_state }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "conflict"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "duplicate"
+        }
+      },
+      "id": "e5ee77c1-ee8b-4eec-9dc1-424087a32320",
+      "name": "Route Slot State",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1920,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "cykcsuebotiegggnylua",
+        "tableId": "bot_bookings",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "customer_name",
+              "fieldValue": "={{ $json.customer_name }}"
+            },
+            {
+              "fieldId": "customer_phone",
+              "fieldValue": "={{ $json.customer_phone }}"
+            },
+            {
+              "fieldId": "booking_date",
+              "fieldValue": "={{ $json.booking_date }}"
+            },
+            {
+              "fieldId": "booking_time",
+              "fieldValue": "={{ $json.booking_time }}"
+            },
+            {
+              "fieldId": "service_id",
+              "fieldValue": "={{ $json.service_id }}"
+            },
+            {
+              "fieldId": "customer_chat_id",
+              "fieldValue": "={{ $json.chat_id }}"
+            },
+            {
+              "fieldId": "payment_status",
+              "fieldValue": "paid"
+            },
+            {
+              "fieldId": "deposit_amount",
+              "fieldValue": "={{ $json.deposit_amount }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "confirmed"
+            },
+            {
+              "fieldId": "buttons_sent",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "id": "9c4a89a0-3f37-4eb0-8b0f-1138bae7c287",
+      "name": "Create Confirmed Booking",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        -96
+      ],
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "x1x5RWEJu3EPALYq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json).filter(r => r && r.id !== undefined && r.id !== null);\nif (!rows.length) return [];\nconst dec = $('Decide Slot State').all().map(i => i.json);\nconst cfg = $('Client Config').first().json;\nconst v = $('Verify HMAC & Parse').first().json;\nconst x = v.extras || {};\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];\nconst months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];\nconst fmtDate = d => { const p = String(d).slice(0, 10).split('-').map(Number); const wd = new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay(); return days[wd] + ' ' + p[2] + ' ' + months[p[1] - 1]; };\nconst fmtTime = t => { const h = parseInt(String(t).slice(0, 2), 10); const m = String(t).slice(3, 5); const suf = h === 12 ? 'ظهرًا' : (h > 12 ? 'م' : 'ص'); return ((h % 12) || 12) + ':' + m + ' ' + suf; };\nconst nameOf = r => { const d = dec.find(z => z.booking_time === String(r.booking_time).slice(0, 5) && z.booking_date === String(r.booking_date).slice(0, 10)) || {}; return d.service_name || 'الخدمة'; };\nconst lines = rows.map(r => '• ' + esc(nameOf(r)) + ' — ' + fmtDate(r.booking_date) + ' الساعة ' + fmtTime(r.booking_time) + ' (رقم الحجز ' + r.id + ')');\nconst text = '✅ <b>تم استلام العربون وتأكيد حجزك</b>\\n\\n' + lines.join('\\n') + '\\n\\nالاسم: ' + esc(x.customer_name) + '\\nالعربون المدفوع: ' + esc(x.amount_egp) + ' جنيه\\n\\nفي انتظارك في ' + esc(cfg.clinic_name) + ' 🦷\\nلو احتجت تغيير أو إلغاء استخدم الأزرار تحت.';\nconst ownerText = '✅ دفع عربون مؤكد (Paymob)\\nالاسم: ' + esc(x.customer_name) + '\\nالموبايل: ' + esc(x.customer_phone) + '\\n' + lines.join('\\n') + '\\nالمبلغ: ' + esc(x.amount_egp) + ' جنيه\\nPaymob txn: ' + esc(v.txn_id) + '\\nReference: ' + esc(v.reference);\nreturn [{ json: { chat_id: v.chat_id, text: text, owner_text: ownerText, first_id: rows[0].id } }];"
+      },
+      "id": "50a4740a-18e1-4b46-83f0-9cbda2ca0bb7",
+      "name": "Build Confirmation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $(\"Build Confirmation\").first().json.chat_id }}",
+        "text": "={{ $(\"Build Confirmation\").first().json.text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "التواصل مع العيادة",
+                    "additionalFields": {
+                      "url": "={{ 'https://wa.me/20' + String($('Client Config').first().json.clinic_phone).replace(/^0/, '') + '?text=' + encodeURIComponent('مرحباً، أود الاستفسار عن حجزي رقم ' + $('Build Confirmation').first().json.first_id) }}"
+                    }
+                  },
+                  {
+                    "text": "إلغاء الحجز",
+                    "additionalFields": {
+                      "callback_data": "={{ 'cancel:' + $('Build Confirmation').first().json.first_id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "439590b7-cbe2-4eb6-83be-e684857f9226",
+      "name": "Confirm Booking To Customer",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2640,
+        -96
+      ],
+      "webhookId": "7464b392-5acd-44aa-b48e-db40e83591b3",
+      "credentials": {
+        "telegramApi": {
+          "id": "IBAPbcvpu6ADiNNO",
+          "name": "Telegram account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $(\"Client Config\").first().json.owner_chat_id }}",
+        "text": "={{ $(\"Build Confirmation\").first().json.owner_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5cc4f1b5-0361-40b0-b086-4e2742772da6",
+      "name": "Alert Owner - Booking Paid",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2880,
+        -96
+      ],
+      "webhookId": "cd4cfefa-69d6-4ede-8bfd-9114659d5368",
+      "credentials": {
+        "telegramApi": {
+          "id": "g05zrqKFAS5Gz8aU",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map(i => i.json);\nif (!items.length) return [];\nconst cfg = $('Client Config').first().json;\nconst v = $('Verify HMAC & Parse').first().json;\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst lines = items.map(i => '• ' + esc(i.service_name) + ' — ' + esc(i.booking_date) + ' ' + esc(i.booking_time));\nconst text = '⚠️ تم استلام الدفع، لكن الميعاد التالي اتحجز لحظة الدفع بواسطة عميل آخر:\\n' + lines.join('\\n') + '\\n\\nلا تقلق: العيادة هتتواصل معاك لتحويل العربون لميعاد جديد أو استرداده. وتقدر تكتبلي دلوقتي وأنا أرشحلك مواعيد متاحة.\\nللتواصل المباشر: ' + esc(cfg.clinic_phone);\nconst ownerText = '🚨 دفعة مستلمة لكن الميعاد محجوز (تعارض)\\nالاسم: ' + esc((v.extras || {}).customer_name) + '\\nالموبايل: ' + esc((v.extras || {}).customer_phone) + '\\n' + lines.join('\\n') + '\\nPaymob txn: ' + esc(v.txn_id) + '\\nReference: ' + esc(v.reference) + '\\nالمطلوب: تحويل العربون أو استرداده يدويًا.';\nreturn [{ json: { chat_id: v.chat_id, text: text, owner_text: ownerText } }];"
+      },
+      "id": "e7c070fa-388e-479d-b8ac-11223f42fde9",
+      "name": "Build Conflict Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $(\"Build Conflict Message\").first().json.chat_id }}",
+        "text": "={{ $(\"Build Conflict Message\").first().json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "0152613b-42a4-45ab-904e-390360e6944e",
+      "name": "Notify Customer Slot Conflict",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2400,
+        208
+      ],
+      "webhookId": "eb2ae381-a10c-4809-931a-d69d9af27c87",
+      "credentials": {
+        "telegramApi": {
+          "id": "IBAPbcvpu6ADiNNO",
+          "name": "Telegram account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $(\"Client Config\").first().json.owner_chat_id }}",
+        "text": "={{ $(\"Build Conflict Message\").first().json.owner_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "b8d2e4a2-576d-4949-bbcb-7ea550d06397",
+      "name": "Alert Owner - Slot Conflict",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2640,
+        208
+      ],
+      "webhookId": "5d90d8f8-ba41-4f08-94e4-1baca17ccb09",
+      "credentials": {
+        "telegramApi": {
+          "id": "g05zrqKFAS5Gz8aU",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "عملية الدفع لم تكتمل، ولم يتم تأكيد الحجز.\nتحب أجهزلك رابط دفع جديد، أو نغيّر الميعاد؟ اكتبلي وأنا أساعدك فورًا.\n\nPayment was not completed and the booking is not confirmed. Reply and I will send a new link or reschedule.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5b2a5afe-19f8-4d01-ace0-e8fdd12e4b2d",
+      "name": "Notify Payment Failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        384
+      ],
+      "webhookId": "364bca3e-5451-4151-849f-0e00a54f89da",
+      "credentials": {
+        "telegramApi": {
+          "id": "IBAPbcvpu6ADiNNO",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $(\"Client Config\").first().json.owner_chat_id }}",
+        "text": "=⚠️ دفعة Paymob تحتاج مراجعة يدوية\nTransaction: {{ $json.txn_id }}\nReference: {{ $json.reference }}\nAmount: {{ $json.amount_cents / 100 }} EGP\nChat: {{ $json.chat_id }}\nالسبب: المبلغ لا يطابق الحجز أو بيانات الحجز ناقصة. لم يتم إنشاء أي حجز.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "0dff1a89-a127-43da-9d78-bd3b7d4b7b46",
+      "name": "Alert Owner - Payment Needs Review",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        560
+      ],
+      "webhookId": "f3253b67-83e2-421c-b3e8-3ec2c2166a7e",
+      "credentials": {
+        "telegramApi": {
+          "id": "g05zrqKFAS5Gz8aU",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "c99d0e8e-1bde-40c6-a469-5377c8b833ea",
+      "name": "Ignore Event",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        992,
+        784
+      ],
+      "notes": "Invalid signature, pending transaction, or unrelated callback. Nothing is booked."
+    },
+    {
+      "parameters": {
+        "content": "## Paymob payment webhook\nThe ONLY place a booking is created.\n1. Verify HMAC (SHA-512) with the HMAC secret.\n2. Paid -> re-check the slot -> create booking (confirmed/paid) -> notify customer + owner.\n3. Slot taken meanwhile -> tell the customer and the owner (manual refund/transfer).\n4. Failed -> tell the customer so the AI can recover.\n5. Top-up -> update the existing booking.\n\nSet this webhook URL as the Transaction Processed Callback on the Paymob integration (the Intention call also sends it as notification_url).",
+        "height": 320,
+        "width": 432,
+        "color": 5
+      },
+      "id": "212fc5ed-3537-49eb-b186-23f078913a49",
+      "name": "Sticky Note 0f6edf87",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -624
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $(\"Client Config\").first().json.owner_chat_id }}",
+        "text": "={{ 'ℹ️ إشعار دفع مكرر لنفس الحجز\\nالاسم: ' + $json.customer_name + '\\nالميعاد: ' + $json.booking_date + ' ' + $json.booking_time + '\\nPaymob txn: ' + $json.txn_id + '\\nغالبًا Paymob أعاد إرسال نفس الإشعار. لو لقيت في Paymob عمليتين ناجحتين مختلفتين لنفس الميعاد، استرجع الثانية.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "c695ab9a-837d-448f-9c93-ed411d8ab1b1",
+      "name": "Alert Owner - Duplicate Callback",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2160,
+        448
+      ],
+      "webhookId": "8e3a5c06-66bd-4b14-9a9d-49da1fe73ace",
+      "credentials": {
+        "telegramApi": {
+          "id": "g05zrqKFAS5Gz8aU",
+          "name": "Telegram account 2"
+        }
+      },
+      "notes": "Same customer, same slot already booked. Usually Paymob re-sending a callback. If Paymob shows TWO different successful transactions for this slot, refund the second one."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NzCYZrttYI8Gldun"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $json.chat_id }}"
+            },
+            {
+              "keyName": "released",
+              "condition": "isFalse"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "released",
+              "id": "released",
+              "required": false,
+              "type": "boolean"
+            }
+          ],
+          "value": {
+            "released": true
+          }
+        },
+        "options": {}
+      },
+      "id": "9f656406-d934-4c31-80dc-38b5a59a8a38",
+      "name": "Release Holds After Payment",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        848,
+        -208
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "notes": "Payment confirmed: free this customer's hold (the booking row now occupies the slot). A failure here must never block the booking."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Paymob Callback": {
+      "main": [
+        [
+          {
+            "node": "Client Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client Config": {
+      "main": [
+        [
+          {
+            "node": "Verify HMAC & Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify HMAC & Parse": {
+      "main": [
+        [
+          {
+            "node": "Route Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Outcome": {
+      "main": [
+        [
+          {
+            "node": "Release Holds After Payment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Payment Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Owner - Payment Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Bookings": {
+      "main": [
+        [
+          {
+            "node": "Is Top-up?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Top-up?": {
+      "main": [
+        [
+          {
+            "node": "Apply Top-up To Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Slot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Top-up To Booking": {
+      "main": [
+        [
+          {
+            "node": "Notify Customer Top-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Customer Top-up": {
+      "main": [
+        [
+          {
+            "node": "Alert Owner - Top-up Paid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Slot": {
+      "main": [
+        [
+          {
+            "node": "Decide Slot State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Slot State": {
+      "main": [
+        [
+          {
+            "node": "Route Slot State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Slot State": {
+      "main": [
+        [
+          {
+            "node": "Create Confirmed Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Conflict Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Owner - Duplicate Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Confirmed Booking": {
+      "main": [
+        [
+          {
+            "node": "Build Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Confirm Booking To Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Booking To Customer": {
+      "main": [
+        [
+          {
+            "node": "Alert Owner - Booking Paid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Conflict Message": {
+      "main": [
+        [
+          {
+            "node": "Notify Customer Slot Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Customer Slot Conflict": {
+      "main": [
+        [
+          {
+            "node": "Alert Owner - Slot Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Holds After Payment": {
+      "main": [
+        [
+          {
+            "node": "Expand Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "TMK1YkoXTOx0leZx"
+  },
+  "versionId": "ff22e4a4-1957-49b8-b7e7-4da3db2acdef",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "9e0ca3ab7d4a631ae6c6db70b59d4f4a6de2a6d60f3ff3db6ea41bbba5edf156"
+  },
+  "nodeGroups": [],
+  "id": "kvO9OJXpwpt5rmnf",
+  "tags": []
+}

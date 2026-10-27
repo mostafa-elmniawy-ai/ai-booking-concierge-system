@@ -1,0 +1,963 @@
+{
+  "name": "Paymob - Create Payment Link (Tool)",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "kind"
+            },
+            {
+              "name": "customer_name"
+            },
+            {
+              "name": "customer_phone"
+            },
+            {
+              "name": "chat_id"
+            },
+            {
+              "name": "booking_date"
+            },
+            {
+              "name": "booking_time"
+            },
+            {
+              "name": "service_id"
+            },
+            {
+              "name": "addon_service_id"
+            },
+            {
+              "name": "addon_time"
+            },
+            {
+              "name": "booking_id"
+            },
+            {
+              "name": "replaces_booking_id"
+            },
+            {
+              "name": "confirm_new_phone"
+            }
+          ]
+        }
+      },
+      "id": "3322195e-da97-417b-94f5-cae578b044de",
+      "name": "When Called as Tool",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -576,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-1",
+              "name": "base_url",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.PAYMOB_BASE_URL; } catch (x) { e = undefined; } try { v = $vars.PAYMOB_BASE_URL; } catch (x) { v = undefined; } return e || v || \"https://accept.paymob.com\"; })() }}"
+            },
+            {
+              "id": "cfg-2",
+              "name": "secret_key",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.PAYMOB_SECRET_KEY; } catch (x) { e = undefined; } try { v = $vars.PAYMOB_SECRET_KEY; } catch (x) { v = undefined; } return e || v || \"PASTE_PAYMOB_SECRET_KEY\"; })() }}"
+            },
+            {
+              "id": "cfg-3",
+              "name": "public_key",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.PAYMOB_PUBLIC_KEY; } catch (x) { e = undefined; } try { v = $vars.PAYMOB_PUBLIC_KEY; } catch (x) { v = undefined; } return e || v || \"PASTE_PAYMOB_PUBLIC_KEY\"; })() }}"
+            },
+            {
+              "id": "cfg-4",
+              "name": "integration_id",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.PAYMOB_INTEGRATION_ID; } catch (x) { e = undefined; } try { v = $vars.PAYMOB_INTEGRATION_ID; } catch (x) { v = undefined; } return e || v || \"PASTE_CARD_INTEGRATION_ID\"; })() }}"
+            },
+            {
+              "id": "cfg-5",
+              "name": "notification_url",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.PAYMOB_NOTIFICATION_URL; } catch (x) { e = undefined; } try { v = $vars.PAYMOB_NOTIFICATION_URL; } catch (x) { v = undefined; } return e || v || \"https://mostafaelmniawy6.app.n8n.cloud/webhook/paymob-payment-callback\"; })() }}"
+            },
+            {
+              "id": "cfg-6",
+              "name": "redirection_url",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.PAYMOB_REDIRECT_URL; } catch (x) { e = undefined; } try { v = $vars.PAYMOB_REDIRECT_URL; } catch (x) { v = undefined; } return e || v || \"https://t.me\"; })() }}"
+            },
+            {
+              "id": "cfg-7",
+              "name": "currency",
+              "type": "string",
+              "value": "EGP"
+            },
+            {
+              "id": "cfg-8",
+              "name": "deposit_percent",
+              "type": "number",
+              "value": 5
+            },
+            {
+              "id": "cfg-9",
+              "name": "addon_discount_percent",
+              "type": "number",
+              "value": 20
+            },
+            {
+              "id": "cfg-10",
+              "name": "link_valid_seconds",
+              "type": "number",
+              "value": 3600
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a04533a7-d183-4527-aa7e-57aff6ccfa88",
+      "name": "Client Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -320,
+        0
+      ],
+      "notes": "WHITE-LABEL SWITCH. Everything client-specific lives here. Values are read from $env (self-hosted), then $vars (n8n Pro/Enterprise variables), then fall back to the PASTE_ placeholder. n8n Cloud cannot set $env, so on Cloud either create Variables or paste the real values over the placeholders in this one node."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "cykcsuebotiegggnylua",
+        "tableId": "bot_services",
+        "returnAll": true,
+        "filterType": "none"
+      },
+      "id": "adeae304-222a-48bc-8b39-d008666e26c7",
+      "name": "Get Services Catalog",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        0
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "x1x5RWEJu3EPALYq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "cykcsuebotiegggnylua",
+        "tableId": "bot_bookings",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "booking_date",
+              "condition": "gte",
+              "keyValue": "={{ $now.setZone('Africa/Cairo').toFormat('yyyy-MM-dd') }}"
+            }
+          ]
+        }
+      },
+      "id": "df41ef87-cd61-45d5-89ab-3fa9e24e476a",
+      "name": "Get Upcoming Bookings",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        144,
+        0
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "x1x5RWEJu3EPALYq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inp = $('When Called as Tool').first().json;\nconst cfg = $('Client Config').first().json;\nconst services = $('Get Services Catalog').all().map(i => i.json).filter(r => r && r.id !== undefined && r.id !== null);\nconst rows = $('Get Upcoming Bookings').all().map(i => i.json).filter(r => r && r.id !== undefined && r.id !== null && String(r.status || '').toLowerCase() !== 'cancelled');\nconst nowMs = Date.now();\nconst holdsAll = $('Get Active Holds').all().map(i => i.json).filter(h => h && h.booking_date && h.booking_time && h.released !== true && Number(h.expires_ms) > nowMs);\nconst fail = (code, message) => [{ json: { ok: false, error_code: code, message: message } }];\nconst pad = n => String(n).padStart(2, '0');\n\n// ---------- smart phone and name helpers ----------\nconst AR_D = '٠١٢٣٤٥٦٧٨٩', FA_D = '۰۱۲۳۴۵۶۷۸۹';\nconst normPhone = p => {\n  let d = String(p || '').replace(/[٠-٩]/g, c => AR_D.indexOf(c)).replace(/[۰-۹]/g, c => FA_D.indexOf(c)).replace(/\\D/g, '');\n  if (d.startsWith('0020')) d = '0' + d.slice(4);\n  else if (d.length === 12 && d.startsWith('20')) d = '0' + d.slice(2);\n  else if (d.length === 10 && /^1[0125]/.test(d)) d = '0' + d;\n  return d;\n};\nconst isAr = s => /[\\u0600-\\u06FF]/.test(s);\nconst clean = s => String(s || '').toLowerCase()\n  .replace(/[\\u064B-\\u065F\\u0670\\u0640]/g, '')\n  .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')\n  .replace(/[^\\p{L}\\s]/gu, ' ').replace(/\\s+/g, ' ').trim()\n  .replace(/(^| )(ال|el|al) /g, '$1$2')\n  .replace(/(^| )(عبد|abdel|abdul|abdal|abdu|abd) /g, '$1$2');\nconst AR_SK = { 'ب':'b','ت':'t','ث':'s','ج':'j','ح':'h','خ':'x','د':'d','ذ':'z','ر':'r','ز':'z','س':'s','ش':'S','ص':'s','ض':'d','ط':'t','ظ':'z','غ':'G','ف':'f','ق':'k','ك':'k','ل':'l','م':'m','ن':'n','ه':'h' };\nconst fin = s => s.replace(/(.)\\1+/g, '$1').replace(/^(.{2,})h$/, '$1');\nconst skel = w => {\n  if (isAr(w)) return fin([...w].map(c => AR_SK[c] || '').join(''));\n  const s = w.replace(/sh|ch/g, 'S').replace(/kh/g, 'x').replace(/gh/g, 'G').replace(/th/g, 's').replace(/dh/g, 'z').replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/[cq]/g, 'k').replace(/g/g, 'j').replace(/v/g, 'f').replace(/p/g, 'b').replace(/[^a-zA-Z]/g, '');\n  return fin(s.replace(/[aeiouyw]/g, ''));\n};\nconst lev = (a, b) => {\n  const m = a.length, n = b.length;\n  const d = Array.from({ length: m + 1 }, (_, i) => { const r = new Array(n + 1).fill(0); r[0] = i; return r; });\n  for (let j = 1; j <= n; j++) d[0][j] = j;\n  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));\n  return d[m][n];\n};\n// a = word the customer typed, b = registered word (both already cleaned)\nconst wordRel = (a, b) => {\n  if (a === b) return 'same';\n  const sa = skel(a), sb = skel(b);\n  if (isAr(a) !== isAr(b)) {\n    if (sa && sa === sb) return sa.length >= 2 ? 'same' : 'close';\n    if (sa.length >= 3 && lev(sa, sb) <= 1) return 'close';\n    return 'none';\n  }\n  const mx = Math.max(a.length, b.length);\n  const lim = mx >= 7 ? 2 : (mx >= 4 ? 1 : 0);\n  if (a[0] === b[0] && lev(a, b) <= lim) return 'close';\n  if (sa.length >= 2 && sa === sb) return 'close';\n  if (sa.length >= 3 && a[0] === b[0] && mx >= 5 && lev(sa, sb) <= 1) return 'close';\n  return 'none';\n};\n// the leading article (ال / el / al) is ignored when comparing words\nconst noArt = w => isAr(w) ? (w.length > 4 && w.startsWith('ال') ? w.slice(2) : w) : (w.length > 5 && /^(el|al)/.test(w) ? w.slice(2) : w);\nconst nameRel = (inName, regName) => {\n  const I = clean(inName).split(' ').filter(Boolean).map(noArt), R = clean(regName).split(' ').filter(Boolean).map(noArt);\n  const used = new Set(); let matched = 0, allSame = true;\n  for (const w of I) {\n    let bestRank = 0, bestIdx = -1;\n    R.forEach((r, i) => { if (used.has(i)) return; const rel = wordRel(w, r); const rk = rel === 'same' ? 2 : rel === 'close' ? 1 : 0; if (rk > bestRank) { bestRank = rk; bestIdx = i; } });\n    if (bestIdx >= 0) { used.add(bestIdx); matched++; if (bestRank < 2) allSame = false; }\n  }\n  if (matched < Math.min(2, I.length, R.length)) return 'none';\n  return allSame ? 'same' : 'close';\n};\n\nif (String(cfg.secret_key).indexOf('PASTE_') === 0 || String(cfg.public_key).indexOf('PASTE_') === 0 || !/^[0-9]+$/.test(String(cfg.integration_id))) {\n  return fail('CONFIG_MISSING', 'The payment gateway is not configured yet. Apologize, do not promise a booking, and call escalate_to_human.');\n}\n\nconst chatId = String(inp.chat_id || '').trim();\nconst kind = String(inp.kind || 'new').trim().toLowerCase();\nconst name = String(inp.customer_name || '').trim().replace(/\\s+/g, ' ');\nconst phone = normPhone(inp.customer_phone);\nif (kind !== 'new' && kind !== 'topup' && kind !== 'check') return fail('INVALID_REQUEST', 'kind must be new, topup or check.');\nif (!chatId) return fail('INVALID_REQUEST', 'Missing chat id.');\n\nconst words = name.split(' ');\nif (words.length < 2 || !words.every(w => /^[\\p{L}.'-]+$/u.test(w))) {\n  return fail('INVALID_NAME', 'The full name needs at least two words, letters only. Kindly ask for the first name and the family name. Do not proceed.');\n}\nif (!/^01[0125][0-9]{8}$/.test(phone)) {\n  const why = phone.length !== 11 ? 'it has ' + phone.length + ' digits instead of 11' : 'it must start with 010, 011, 012 or 015';\n  return fail('INVALID_PHONE', 'The phone is not a valid Egyptian mobile (' + why + '). Kindly ask the customer to resend an 11-digit number starting with 010, 011, 012 or 015.');\n}\n\n// ---------- identity: smart, never harsh ----------\nconst mine = rows.filter(r => String(r.customer_chat_id || '') === chatId);\nconst others = rows.filter(r => String(r.customer_chat_id || '') !== chatId);\nif (others.some(r => normPhone(r.customer_phone) === phone)) {\n  return fail('PHONE_USED_BY_OTHER_ACCOUNT', 'This phone number is already linked to another Telegram account, so it cannot be used from this account. Say so kindly WITHOUT revealing anything about the other account, and ask whether the customer wants to continue with a different mobile number. Offer escalate_to_human only if they insist or need help.');\n}\nconst accPhones = [...new Set(mine.map(r => normPhone(r.customer_phone)).filter(Boolean))];\nlet finalName = name;\nlet idStatus = 'OK_NEW_CUSTOMER';\nif (accPhones.includes(phone)) {\n  idStatus = 'OK_PHONE_MATCHES_ACCOUNT';\n  const regNames = [...new Set(mine.filter(r => normPhone(r.customer_phone) === phone).map(r => String(r.customer_name || '').trim()).filter(Boolean))];\n  if (regNames.length) {\n    const rank = { same: 2, close: 1, none: 0 };\n    let best = { rel: 'none', name: regNames[0] };\n    for (const rn of regNames) { const rel = nameRel(name, rn); if (rank[rel] > rank[best.rel]) best = { rel: rel, name: rn }; }\n    if (best.rel === 'same') {\n      finalName = best.name;\n    } else if (best.rel === 'close') {\n      return fail('NAME_SUGGESTION', 'The name is close to the name registered for this phone on this account: [' + best.name + ']. Ask kindly: هل تقصد ' + best.name + '؟ If the customer says yes, call again using EXACTLY that registered name. If no, tell them this number is registered under that name and ask whether to continue with it or to use another phone number. Do not proceed meanwhile.');\n    } else {\n      return fail('NAME_DIFFERS_FROM_RECORD', 'This phone is registered on this Telegram account under the name [' + best.name + '], which is different from the name given. Kindly tell the customer, and ask whether to continue with the registered name or to book with another phone number. Do not proceed meanwhile.');\n    }\n  }\n} else if (accPhones.length) {\n  if (String(inp.confirm_new_phone || '').trim().toLowerCase() !== 'yes') {\n    return fail('NEW_PHONE_NEEDS_CONFIRMATION', 'This account already has a booking with another phone number (ending ' + accPhones.map(p => p.slice(-4)).join(' / ') + '). Ask kindly: الرقم ده مختلف عن الرقم المسجل على حسابك (بينتهي بـ ' + accPhones[0].slice(-4) + '). تحب نكمل بالرقم الجديد ولا بالرقم المسجل؟ If the customer confirms the NEW number, call again with confirm_new_phone=yes. If they prefer the registered one, ask them to send it in full.');\n  }\n  idStatus = 'OK_NEW_PHONE_CONFIRMED';\n}\n\nif (kind === 'check') {\n  return [{ json: { ok: true, check_only: 'yes', status: idStatus, normalized_phone: phone, name_to_use: finalName, message: 'Identity check passed. Use name_to_use and normalized_phone in every following step.' } }];\n}\n\nconst findSvc = id => services.find(s => String(s.id) === String(id));\nconst pct = Number(cfg.deposit_percent);\nconst disc = Number(cfg.addon_discount_percent);\nconst depositFor = (price, d) => Math.round(Number(price) * (1 - d / 100) * pct / 100);\nconst svc = findSvc(inp.service_id);\nif (!svc || !(Number(svc.price) > 0)) {\n  return fail('SERVICE_NOT_FOUND', 'Unknown service_id. Call get_business_info and use the exact id.');\n}\n\nlet items = [];\nif (kind === 'topup') {\n  const b = mine.find(r => String(r.id) === String(inp.booking_id));\n  if (!b) return fail('BOOKING_NOT_FOUND', 'No active booking with that id on this Telegram account.');\n  const total = depositFor(svc.price, 0);\n  const paid = String(b.payment_status) === 'paid' ? (Number(b.deposit_amount) || 0) : 0;\n  const due = total - paid;\n  if (due <= 0) return fail('NO_PAYMENT_DUE', 'No extra payment is needed. Use change_service instead.');\n  items = [{ service_id: String(svc.id), service_name: svc.name, booking_id: b.id, booking_date: String(b.booking_date).slice(0, 10), booking_time: String(b.booking_time).slice(0, 5), deposit_amount: due, deposit_total: total }];\n} else {\n  const date = String(inp.booking_date || '').trim();\n  const time = String(inp.booking_time || '').trim().slice(0, 5);\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) return fail('INVALID_DATE', 'booking_date must be YYYY-MM-DD.');\n  const cairo = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Cairo' }));\n  const today = cairo.getFullYear() + '-' + pad(cairo.getMonth() + 1) + '-' + pad(cairo.getDate());\n  const lastDay = new Date(cairo.getFullYear(), cairo.getMonth(), cairo.getDate() + 13);\n  const lastStr = lastDay.getFullYear() + '-' + pad(lastDay.getMonth() + 1) + '-' + pad(lastDay.getDate());\n  if (date < today || date > lastStr) return fail('INVALID_DATE', 'The date must be within the next 14 days.');\n  const nowMin = cairo.getHours() * 60 + cairo.getMinutes();\n  const okTime = t => /^1[0-7]:00$/.test(t);\n  const pastToday = t => date === today && parseInt(t.slice(0, 2), 10) * 60 <= nowMin;\n  const booked = t => rows.some(r => String(r.booking_date).slice(0, 10) === date && String(r.booking_time).slice(0, 5) === t);\n  const heldByOther = t => holdsAll.some(h => String(h.chat_id) !== chatId && String(h.booking_date) === date && String(h.booking_time).slice(0, 5) === t);\n  const taken = t => booked(t) || heldByOther(t);\n  if (!okTime(time) || pastToday(time)) return fail('INVALID_TIME', 'Times are on the hour from 10:00 to 17:00 and must be in the future.');\n  if (taken(time)) return fail('SLOT_TAKEN', 'That time is no longer available (booked, or held by another customer who is paying right now). Offer the nearest free times from LIVE AVAILABILITY.');\n  const dup = mine.find(r => String(r.booking_date).slice(0, 10) === date && String(r.id) !== String(inp.replaces_booking_id || ''));\n  if (dup) {\n    return fail('SAME_DAY_DUPLICATE', 'This customer already has an active booking on that date at ' + String(dup.booking_time).slice(0, 5) + ' (booking id ' + dup.id + '). Ask whether to move it with reschedule_booking or cancel it first, then pass replaces_booking_id.');\n  }\n  items = [{ service_id: String(svc.id), service_name: svc.name, booking_id: null, booking_date: date, booking_time: time, deposit_amount: depositFor(svc.price, 0) }];\n  const addonId = String(inp.addon_service_id || '').trim();\n  if (addonId) {\n    const a = findSvc(addonId);\n    const at = String(inp.addon_time || '').trim().slice(0, 5);\n    if (!a || !(Number(a.price) > 0) || addonId === String(svc.id)) return fail('SERVICE_NOT_FOUND', 'Unknown or duplicate addon_service_id.');\n    if (!okTime(at) || pastToday(at) || at === time || taken(at)) return fail('SLOT_TAKEN', 'The add-on time is not free. Pick another free time on the same date or skip the add-on.');\n    items.push({ service_id: String(a.id), service_name: a.name, booking_id: null, booking_date: date, booking_time: at, deposit_amount: depositFor(a.price, disc) });\n  }\n}\n\nconst amount = items.reduce((s, i) => s + i.deposit_amount, 0);\nif (!(amount >= 1)) return fail('INVALID_AMOUNT', 'The computed deposit is below 1 EGP.');\nconst reference = 'BK-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();\nconst cents = a => Math.round(a) * 100;\n// New bookings hold their slot(s) for the link lifetime plus a 5 minute grace period\nconst holdExpiresMs = kind === 'new' ? nowMs + (Number(cfg.link_valid_seconds) + 300) * 1000 : 0;\nconst holds = kind === 'new' ? items.map(i => ({ chat_id: chatId, booking_date: i.booking_date, booking_time: i.booking_time, expires_ms: holdExpiresMs, released: false })) : [];\nconst fw = finalName.split(' ');\nconst body = {\n  amount: cents(amount),\n  currency: cfg.currency,\n  payment_methods: [Number(cfg.integration_id)],\n  items: items.map(i => ({ name: String(i.service_name || 'Service').slice(0, 50), amount: cents(i.deposit_amount), description: 'Deposit ' + i.booking_date + ' ' + i.booking_time, quantity: 1 })),\n  billing_data: {\n    first_name: fw[0],\n    last_name: fw.slice(1).join(' '),\n    email: 'tg' + chatId + '@example.com',\n    phone_number: '+20' + phone.slice(1),\n    apartment: 'NA', floor: 'NA', street: 'NA', building: 'NA', city: 'NA', state: 'NA', country: 'EG', postal_code: 'NA'\n  },\n  special_reference: reference,\n  expiration: Number(cfg.link_valid_seconds),\n  notification_url: cfg.notification_url,\n  redirection_url: cfg.redirection_url,\n  extras: { v: 1, kind: kind, chat_id: chatId, customer_name: finalName, customer_phone: phone, amount_egp: amount, items: items, replaces_booking_id: String(inp.replaces_booking_id || '') }\n};\nconst summary = items.map(i => i.service_name + ' ' + i.booking_date + ' ' + i.booking_time + ' (deposit ' + i.deposit_amount + ' EGP)').join(' + ');\nreturn [{ json: { ok: true, reference: reference, amount_egp: amount, summary: summary, chat_id: chatId, hold_expires_ms: holdExpiresMs, holds: holds, paymob_body: body } }];"
+      },
+      "id": "0f7a802c-4770-4e3e-bdf7-bcd04be30baa",
+      "name": "Validate & Price",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok ? \"yes\" : \"no\" }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "yes"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b42c8c72-b976-4fba-a6cd-34d7d4b7e378",
+      "name": "Request Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        976,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $(\"Client Config\").first().json.base_url }}/v1/intention/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Token {{ $(\"Client Config\").first().json.secret_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Validate & Price').first().json.paymob_body) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "11091587-54a2-4d0f-9704-40e60c3bf156",
+      "name": "Create Paymob Intention",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2304,
+        48
+      ],
+      "executeOnce": true,
+      "onError": "continueErrorOutput",
+      "notes": "Paymob Intention API (current unified-checkout flow). One call replaces the legacy auth/token + order + payment_keys chain. Uses the SECRET key from Client Config."
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Client Config').first().json;\nconst v = $('Validate & Price').first().json;\nconst r = $input.first().json;\nif (!r || !r.client_secret) {\n  return [{ json: { ok: false, error_code: 'PAYMOB_NO_CLIENT_SECRET', message: 'Paymob did not return a checkout session. The booking is NOT made. Offer to retry, reschedule, or contact the clinic.' } }];\n}\nconst url = String(cfg.base_url).replace(/\\/$/, '') + '/unifiedcheckout/?publicKey=' + encodeURIComponent(cfg.public_key) + '&clientSecret=' + encodeURIComponent(r.client_secret);\nreturn [{ json: {\n  ok: true,\n  payment_url: url,\n  amount_egp: v.amount_egp,\n  reference: v.reference,\n  summary: v.summary,\n  valid_minutes: Math.round(Number(cfg.link_valid_seconds) / 60),\n  instruction: 'Put payment_url on its own line, copy it exactly, and say: Please pay the deposit to secure your slot. The booking is NOT confirmed until the payment succeeds.'\n} }];"
+      },
+      "id": "b815e621-b2f6-4bae-be3c-8aa34f445861",
+      "name": "Build Payment Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2592,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "pe-1",
+              "name": "ok",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "pe-2",
+              "name": "error_code",
+              "type": "string",
+              "value": "PAYMOB_ERROR"
+            },
+            {
+              "id": "pe-3",
+              "name": "message",
+              "type": "string",
+              "value": "Payment gateway request failed. The booking is NOT made and the held slot was released. Apologize, offer to retry once, reschedule, or contact the clinic."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f87058e3-7fd2-4ce7-b975-dd25f78c0a81",
+      "name": "Return Paymob Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2784,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ve-1",
+              "name": "ok",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "ve-2",
+              "name": "error_code",
+              "type": "string",
+              "value": "={{ $json.error_code }}"
+            },
+            {
+              "id": "ve-3",
+              "name": "message",
+              "type": "string",
+              "value": "={{ $json.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "27a4db23-1538-4e9c-8d7a-0dfe9f67b56b",
+      "name": "Return Validation Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1184,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Paymob payment-link tool\nCalled by the AI agent tool `generate_payment_link`.\n1. Validates name (2+ words), 11-digit Egyptian phone, identity vs Telegram account, slot, same-day duplicates.\n2. Re-prices the deposit server-side (never trusts the LLM).\n3. Calls Paymob Intention API and returns a checkout URL.\nNo booking is saved here. The Paymob webhook workflow saves it after payment.\n\nEdit only **Client Config** to white-label.",
+        "height": 240,
+        "width": 528,
+        "color": 4
+      },
+      "id": "3b173950-84dd-4c84-a6a1-3d51959a1f56",
+      "name": "Sticky Note 22596234",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NzCYZrttYI8Gldun"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "released",
+              "condition": "isFalse"
+            },
+            {
+              "keyName": "expires_ms",
+              "condition": "gt",
+              "keyValue": "={{ Date.now() }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "26133601-4119-4d5f-b05f-9301653c28a9",
+      "name": "Get Active Holds",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        368,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "notes": "Slots currently held by customers who are paying (not released, not expired)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nh-1",
+              "leftValue": "={{ Number($json.hold_expires_ms) > 0 ? \"yes\" : \"no\" }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "yes"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "3eb5b737-eb88-492a-a935-28b6b35a6f68",
+      "name": "Needs Hold?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1408,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NzCYZrttYI8Gldun"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $json.chat_id }}"
+            },
+            {
+              "keyName": "released",
+              "condition": "isFalse"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "released",
+              "id": "released",
+              "required": false,
+              "type": "boolean"
+            }
+          ],
+          "value": {
+            "released": true
+          }
+        },
+        "options": {}
+      },
+      "id": "407198fa-b607-4faa-b957-a957905ae4da",
+      "name": "Release Old Holds",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1664,
+        -96
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "notes": "A customer can hold at most one payment request at a time: a new link replaces their previous hold."
+    },
+    {
+      "parameters": {
+        "jsCode": "const v = $('Validate & Price').first().json;\nreturn (v.holds || []).map(h => ({ json: h }));"
+      },
+      "id": "db74e61a-8b99-4f24-bfdb-61be318aa92d",
+      "name": "Expand Holds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1872,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NzCYZrttYI8Gldun"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "chat_id",
+              "id": "chat_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "booking_date",
+              "id": "booking_date",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "booking_time",
+              "id": "booking_time",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "expires_ms",
+              "id": "expires_ms",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "released",
+              "id": "released",
+              "required": false,
+              "type": "boolean"
+            }
+          ],
+          "value": {
+            "booking_date": "={{ $json.booking_date }}",
+            "booking_time": "={{ $json.booking_time }}",
+            "chat_id": "={{ $json.chat_id }}",
+            "expires_ms": "={{ $json.expires_ms }}",
+            "released": false
+          }
+        },
+        "options": {}
+      },
+      "id": "4ca52000-622f-45a7-8987-cb8ed88ef1b2",
+      "name": "Insert Hold",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2064,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NzCYZrttYI8Gldun"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $(\"Validate & Price\").first().json.chat_id }}"
+            },
+            {
+              "keyName": "expires_ms",
+              "keyValue": "={{ $(\"Validate & Price\").first().json.hold_expires_ms }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "released",
+              "id": "released",
+              "required": false,
+              "type": "boolean"
+            }
+          ],
+          "value": {
+            "released": true
+          }
+        },
+        "options": {}
+      },
+      "id": "ed49c743-e020-42b0-8a53-8572bc307a7d",
+      "name": "Release Holds On Error",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2592,
+        192
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "notes": "Paymob call failed: free the slot(s) held by this request (matched by the exact expiry stamp, so unrelated holds stay)."
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NzCYZrttYI8Gldun"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "expires_ms",
+              "condition": "lt",
+              "keyValue": "={{ Date.now() - 86400000 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8220141c-65bd-4ddd-b7c6-4e70b329a085",
+      "name": "Purge Old Holds",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        576,
+        0
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "notes": "Housekeeping: deletes holds that expired more than a day ago so the table never grows. A failure here never blocks a payment link."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "co-1",
+              "leftValue": "={{ $json.check_only === 'yes' ? 'yes' : 'no' }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "yes"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "164eb0d7-928d-483d-81f5-c9e2014ea6a3",
+      "name": "Check Only?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1168,
+        -176
+      ],
+      "notes": "kind=check: identity verification only. Returns the result to the agent without creating a Paymob link or holding a slot."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cr-1",
+              "name": "ok",
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "id": "cr-2",
+              "name": "status",
+              "type": "string",
+              "value": "={{ $json.status }}"
+            },
+            {
+              "id": "cr-3",
+              "name": "normalized_phone",
+              "type": "string",
+              "value": "={{ $json.normalized_phone }}"
+            },
+            {
+              "id": "cr-4",
+              "name": "name_to_use",
+              "type": "string",
+              "value": "={{ $json.name_to_use }}"
+            },
+            {
+              "id": "cr-5",
+              "name": "message",
+              "type": "string",
+              "value": "={{ $json.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "04530ec9-72d7-4ada-ba3a-d1216fc4649e",
+      "name": "Return Check Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1504,
+        -432
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Called as Tool": {
+      "main": [
+        [
+          {
+            "node": "Client Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client Config": {
+      "main": [
+        [
+          {
+            "node": "Get Services Catalog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Services Catalog": {
+      "main": [
+        [
+          {
+            "node": "Get Upcoming Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Price": {
+      "main": [
+        [
+          {
+            "node": "Request Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request Valid?": {
+      "main": [
+        [
+          {
+            "node": "Check Only?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Paymob Intention": {
+      "main": [
+        [
+          {
+            "node": "Build Payment Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Release Holds On Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Upcoming Bookings": {
+      "main": [
+        [
+          {
+            "node": "Get Active Holds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Hold?": {
+      "main": [
+        [
+          {
+            "node": "Release Old Holds",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Paymob Intention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Old Holds": {
+      "main": [
+        [
+          {
+            "node": "Expand Holds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Holds": {
+      "main": [
+        [
+          {
+            "node": "Insert Hold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Hold": {
+      "main": [
+        [
+          {
+            "node": "Create Paymob Intention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Holds On Error": {
+      "main": [
+        [
+          {
+            "node": "Return Paymob Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Holds": {
+      "main": [
+        [
+          {
+            "node": "Purge Old Holds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Purge Old Holds": {
+      "main": [
+        [
+          {
+            "node": "Validate & Price",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Only?": {
+      "main": [
+        [
+          {
+            "node": "Return Check Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs Hold?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "TMK1YkoXTOx0leZx"
+  },
+  "versionId": "ddd916c0-fd69-4f17-a748-8df3e44ab8cb",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "9e0ca3ab7d4a631ae6c6db70b59d4f4a6de2a6d60f3ff3db6ea41bbba5edf156"
+  },
+  "nodeGroups": [],
+  "id": "ufCEcfHH631ralVr",
+  "tags": []
+}

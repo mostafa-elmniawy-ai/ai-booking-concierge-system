@@ -1,0 +1,795 @@
+{
+  "name": "Booking Follow-up Scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "booking-followup",
+        "options": {
+          "responseData": "{\"ok\":true,\"message\":\"Follow-up scheduled. A reminder will be sent in about 2 hours if the customer has not booked.\"}"
+        }
+      },
+      "id": "1cb94779-b245-432f-9a06-37b8e3e1ab77",
+      "name": "Schedule Follow-up",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "251eff8a-3528-43c7-813c-155c19568ac4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f-1",
+              "name": "chat_id",
+              "type": "string",
+              "value": "={{ String($json.body?.chat_id ?? \"\").replace(/[^0-9-]/g, \"\") }}"
+            },
+            {
+              "id": "f-2",
+              "name": "customer_name",
+              "type": "string",
+              "value": "={{ String($json.body?.customer_name ?? \"\").replace(/[<>&\"]/g, \"\").slice(0, 40) }}"
+            },
+            {
+              "id": "f-3",
+              "name": "language",
+              "type": "string",
+              "value": "={{ $json.body?.language === \"en\" ? \"en\" : \"ar\" }}"
+            },
+            {
+              "id": "f-4",
+              "name": "context",
+              "type": "string",
+              "value": "={{ String($json.body?.context ?? \"\").replace(/[<>&\"]/g, \"\").slice(0, 80) }}"
+            },
+            {
+              "id": "f-5",
+              "name": "delay_minutes",
+              "type": "number",
+              "value": "={{ Math.min(1440, Math.max(30, Number($json.body?.delay_minutes ?? 120) || 120)) }}"
+            },
+            {
+              "id": "f-6",
+              "name": "started_at",
+              "type": "string",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "id": "f-7",
+              "name": "clinic_name",
+              "type": "string",
+              "value": "={{ (() => { let e; let v; try { e = $env.CLINIC_NAME; } catch (x) { e = undefined; } try { v = $vars.CLINIC_NAME; } catch (x) { v = undefined; } return e || v || \"عيادة نور دنتيست\"; })() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ccc89cb1-fd76-4863-8ada-78a969a35952",
+      "name": "Normalize Request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ],
+      "notes": "Sanitizes everything the AI sends. The reminder text is built from fixed templates, never from free text."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.chat_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2a3ccda7-57f9-492e-ae49-b1579f3b2b11",
+      "name": "Valid Chat?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $(\"Normalize Request\").first().json.delay_minutes }}",
+        "unit": "minutes"
+      },
+      "id": "eb0a83a6-cd62-482b-84c3-7ce8e448cccf",
+      "name": "Wait Before Reminder",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        -96
+      ],
+      "webhookId": "c21febeb-d71e-4e9a-ab31-c1d2c64438b3"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "cykcsuebotiegggnylua",
+        "tableId": "bot_bookings",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "customer_chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $(\"Normalize Request\").first().json.chat_id }}"
+            },
+            {
+              "keyName": "created_at",
+              "condition": "gte",
+              "keyValue": "={{ $(\"Normalize Request\").first().json.started_at }}"
+            }
+          ]
+        }
+      },
+      "id": "ecb61292-9ea2-4a9d-8e08-acb21e9ff795",
+      "name": "Check Bookings Since",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        960,
+        -96
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "supabaseOAuth2Api": {
+          "id": "x1x5RWEJu3EPALYq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $('Normalize Request').first().json;\nconst booked = $('Check Bookings Since').all().some(i => i.json && i.json.id !== undefined && i.json.id !== null);\nconst ev = $('Get Events').all().map(i => i.json).filter(e => e && e.event && e.at);\nconst startedMs = Date.parse(r.started_at);\nconst after = e => Date.parse(e.at) > startedMs;\nconst cancelled = ev.some(e => e.event === 'cancel' && after(e));\nconst superseded = ev.some(e => e.event === 'scheduled' && after(e));\nconst dayAgo = Date.now() - 24 * 3600 * 1000;\nconst recentlyReminded = ev.some(e => e.event === 'reminded' && Date.parse(e.at) > dayAgo);\nconst send = !booked && !cancelled && !superseded && !recentlyReminded;\nconst ctx = r.context ? ' (' + r.context + ')' : '';\nconst first = String(r.customer_name || '').split(' ')[0];\nconst text = r.language === 'en'\n  ? 'Hi ' + (first || 'there') + ' 👋 Just checking in from ' + r.clinic_name + '. Your appointment request' + ctx + ' is still open. Reply here and I will send a fresh payment link or move it to a time that suits you 🦷'\n  : 'أهلاً ' + (first || 'بحضرتك') + ' 👋 معاك ' + r.clinic_name + '. لسه فاكرين طلب حجزك' + ctx + '. لو لسه حابب تكمل اكتبلي هنا وأنا أجهزلك رابط دفع جديد أو نغيّر الميعاد لأي وقت يناسبك 🦷';\nreturn [{ json: { send: send, chat_id: r.chat_id, text: text, booked: booked, cancelled: cancelled, superseded: superseded, recently_reminded: recentlyReminded } }];"
+      },
+      "id": "fe077c5a-3685-4837-93a4-9bb2fe1c57f3",
+      "name": "Decide Reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.send ? \"yes\" : \"no\" }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "yes"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7b3db023-ed78-42a3-aefc-578a4fa893b3",
+      "name": "Customer Still Unbooked?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "809420ed-c463-4ef7-aaff-b254c6d02ba7",
+      "name": "Send Reminder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -208
+      ],
+      "webhookId": "8d9c40e3-3914-4fb5-8498-2779337614cf",
+      "credentials": {
+        "telegramApi": {
+          "id": "IBAPbcvpu6ADiNNO",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "2ba14b1f-dac1-4685-9256-3ef51961c312",
+      "name": "Skip - Already Booked",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "9cdaba61-5022-4b35-aaec-29083699486b",
+      "name": "Drop Invalid Request",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        720,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Follow-up scheduler\nCalled by the AI tool `schedule_followup`. Responds immediately so the agent is never blocked, waits (default 120 min), and sends ONE reminder only if the customer has not booked since.",
+        "height": 240,
+        "width": 208,
+        "color": 6
+      },
+      "id": "ae3b69ac-e443-42cd-8d8e-eed1816c7606",
+      "name": "Sticky Note c597d073",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        256,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "g6pfXRQV4kOPL0Xt"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "chat_id",
+              "id": "chat_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "event",
+              "id": "event",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "at",
+              "id": "at",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "at": "={{ $json.started_at }}",
+            "chat_id": "={{ $json.chat_id }}",
+            "event": "scheduled"
+          }
+        },
+        "options": {}
+      },
+      "id": "6e34683b-6f68-4c0f-94e2-09d29e103cef",
+      "name": "Log Scheduled",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        608,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "g6pfXRQV4kOPL0Xt"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $(\"Normalize Request\").first().json.chat_id }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "8b19370a-2c9e-4c83-b070-e9c3fedb7c4c",
+      "name": "Get Events",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        -96
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "g6pfXRQV4kOPL0Xt"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "chat_id",
+              "id": "chat_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "event",
+              "id": "event",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "at",
+              "id": "at",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "at": "={{ new Date().toISOString() }}",
+            "chat_id": "={{ $(\"Normalize Request\").first().json.chat_id }}",
+            "event": "reminded"
+          }
+        },
+        "options": {}
+      },
+      "id": "88fbbc06-c6ae-41e6-aff2-7705e5c885fb",
+      "name": "Log Reminded",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1920,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "booking-followup-cancel",
+        "options": {
+          "responseData": "{\"ok\":true,\"message\":\"Pending reminders for this customer are cancelled.\"}"
+        }
+      },
+      "id": "bcce3124-890d-423f-ac17-332c69c60504",
+      "name": "Cancel Follow-up",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        512
+      ],
+      "webhookId": "a48a5238-a3f8-4ca8-a0a8-3db37e2ca2e9"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c-1",
+              "name": "chat_id",
+              "type": "string",
+              "value": "={{ String($json.body?.chat_id ?? \"\").replace(/[^0-9-]/g, \"\") }}"
+            },
+            {
+              "id": "c-2",
+              "name": "event",
+              "type": "string",
+              "value": "cancel"
+            },
+            {
+              "id": "c-3",
+              "name": "at",
+              "type": "string",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a42c4e64-86d0-42bc-bf97-0ff656f8cb38",
+      "name": "Normalize Cancel",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "hc-1",
+              "leftValue": "={{ $json.chat_id }}",
+              "operator": {
+                "operation": "notEmpty",
+                "type": "string"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "7dbf7275-1193-4112-9c2e-d9f4c58c3653",
+      "name": "Has Chat Id?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "g6pfXRQV4kOPL0Xt"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "chat_id",
+              "id": "chat_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "event",
+              "id": "event",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "at",
+              "id": "at",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "at": "={{ $json.at }}",
+            "chat_id": "={{ $json.chat_id }}",
+            "event": "cancel"
+          }
+        },
+        "options": {}
+      },
+      "id": "baf61696-de2b-4d64-9bb8-0253907cac1c",
+      "name": "Log Cancel",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NzCYZrttYI8Gldun"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $json.chat_id }}"
+            },
+            {
+              "keyName": "released",
+              "condition": "isFalse"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "released",
+              "id": "released",
+              "required": false,
+              "type": "boolean"
+            }
+          ],
+          "value": {
+            "released": true
+          }
+        },
+        "options": {}
+      },
+      "id": "482b8c34-a98a-464c-95fe-060dee865cf9",
+      "name": "Release Holds",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        448
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "notes": "The customer declined or cancelled the payment request: free the slot they were holding."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Normalize Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Request": {
+      "main": [
+        [
+          {
+            "node": "Valid Chat?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Chat?": {
+      "main": [
+        [
+          {
+            "node": "Log Scheduled",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Drop Invalid Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Reminder": {
+      "main": [
+        [
+          {
+            "node": "Check Bookings Since",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Reminder": {
+      "main": [
+        [
+          {
+            "node": "Customer Still Unbooked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customer Still Unbooked?": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip - Already Booked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Scheduled": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Bookings Since": {
+      "main": [
+        [
+          {
+            "node": "Get Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Events": {
+      "main": [
+        [
+          {
+            "node": "Decide Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder": {
+      "main": [
+        [
+          {
+            "node": "Log Reminded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Normalize Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Cancel": {
+      "main": [
+        [
+          {
+            "node": "Has Chat Id?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Chat Id?": {
+      "main": [
+        [
+          {
+            "node": "Log Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Cancel": {
+      "main": [
+        [
+          {
+            "node": "Release Holds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "TMK1YkoXTOx0leZx"
+  },
+  "versionId": "0aba898c-8282-4ecb-98ff-2b642e12ae86",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "9e0ca3ab7d4a631ae6c6db70b59d4f4a6de2a6d60f3ff3db6ea41bbba5edf156"
+  },
+  "nodeGroups": [],
+  "id": "vGKzXD4F9t1NWXU6",
+  "tags": []
+}
