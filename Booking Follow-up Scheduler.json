@@ -159,8 +159,8 @@
       "alwaysOutputData": true,
       "executeOnce": true,
       "credentials": {
-        "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+        "supabaseOAuth2Ap": {
+          "id": "",
           "name": "Supabase account"
         }
       }
@@ -226,10 +226,10 @@
         1680,
         -208
       ],
-      "webhookId": "8d9c40e3-3914-4fb5-8498-2779337614cf",
+      "webhookId": "",
       "credentials": {
         "telegramApi": {
-          "id": "IBAPbcvpu6ADiNNO",
+          "id": "",
           "name": "Telegram account"
         }
       }
