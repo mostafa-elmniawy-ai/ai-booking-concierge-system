@@ -16,10 +16,10 @@
         -160,
         560
       ],
-      "webhookId": "c13e3641-3162-4155-8eb4-c9ac561557c1",
+      "webhookId": "",
       "credentials": {
         "telegramApi": {
-          "id": "IBAPbcvpu6ADiNNO",
+          "id": "",
           "name": "Telegram account"
         }
       }
@@ -147,7 +147,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+          "id": "",
           "name": "Supabase account"
         }
       }
@@ -258,7 +258,7 @@
       ],
       "credentials": {
         "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+          "id": "",
           "name": "Supabase account"
         }
       }
@@ -351,7 +351,7 @@
       ],
       "credentials": {
         "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+          "id": "",
           "name": "Supabase account"
         }
       }
@@ -389,7 +389,7 @@
       ],
       "credentials": {
         "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+          "id": "",
           "name": "Supabase account"
         }
       }
@@ -446,7 +446,7 @@
       ],
       "credentials": {
         "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+          "id": "",
           "name": "Supabase account"
         }
       }
@@ -470,10 +470,10 @@
         1712,
         272
       ],
-      "webhookId": "c6cf11c1-4dfd-4c90-8d6d-960f26a85ee6",
+      "webhookId": "",
       "credentials": {
         "telegramApi": {
-          "id": "g05zrqKFAS5Gz8aU",
+          "id": "",
           "name": "Telegram account 2"
         }
       }
@@ -534,7 +534,7 @@
       ],
       "credentials": {
         "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+          "id": "",
           "name": "Supabase account"
         }
       }
@@ -558,10 +558,10 @@
         1904,
         272
       ],
-      "webhookId": "52422170-c0b0-4af3-b4ad-7c09b0a2044b",
+      "webhookId": "",
       "credentials": {
         "telegramApi": {
-          "id": "IBAPbcvpu6ADiNNO",
+          "id": "",
           "name": "Telegram account"
         }
       }
@@ -634,10 +634,10 @@
         2640,
         -480
       ],
-      "webhookId": "1513f352-c883-4b1d-bcb9-41712591403d",
+      "webhookId": "",
       "credentials": {
         "telegramApi": {
-          "id": "IBAPbcvpu6ADiNNO",
+          "id": "",
           "name": "Telegram account"
         }
       }
@@ -658,10 +658,10 @@
         512,
         912
       ],
-      "webhookId": "38492583-7147-4514-8b45-3b03e5a714b6",
+      "webhookId": "",
       "credentials": {
         "telegramApi": {
-          "id": "IBAPbcvpu6ADiNNO",
+          "id": "",
           "name": "Telegram account"
         }
       }
@@ -704,7 +704,7 @@
       ],
       "credentials": {
         "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+          "id": "",
           "name": "Supabase account"
         }
       }
@@ -757,7 +757,7 @@
       ],
       "credentials": {
         "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+          "id": "",
           "name": "Supabase account"
         }
       }
@@ -778,10 +778,10 @@
         2720,
         -112
       ],
-      "webhookId": "c76ba658-3bf6-462e-b11a-37dde40a85a0",
+      "webhookId": "",
       "credentials": {
         "telegramApi": {
-          "id": "IBAPbcvpu6ADiNNO",
+          "id": "",
           "name": "Telegram account"
         }
       }
