@@ -58,7 +58,7 @@
       ],
       "credentials": {
         "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+          "id": "",
           "name": "Supabase account"
         }
       }
@@ -113,10 +113,10 @@
         672,
         0
       ],
-      "webhookId": "eea3a937-be59-4098-9a17-639f1ee5d67f",
+      "webhookId": "",
       "credentials": {
         "telegramApi": {
-          "id": "IBAPbcvpu6ADiNNO",
+          "id": "",
           "name": "Telegram account"
         }
       }
@@ -156,7 +156,7 @@
       ],
       "credentials": {
         "supabaseOAuth2Api": {
-          "id": "x1x5RWEJu3EPALYq",
+          "id": "",
           "name": "Supabase account"
         }
       }
