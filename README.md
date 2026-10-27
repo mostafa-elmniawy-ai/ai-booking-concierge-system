@@ -93,6 +93,45 @@ To deploy this system for a new client:
 5. Activate the workflows.
 
 ---
+
+## 📸 System Screenshots
+
+Here is a visual walkthrough of the system architecture, workflows, and the actual user experience.
+
+### 1. The Core Agentic Workflows
+| Main Agentic Bot | Paymob Webhook |
+| :---: | :---: |
+| <img src="screenshots/Main_Agentic_Bot.png" width="450" alt="Main Agentic Bot" /> | <img src="screenshots/Paymob_Payment_Webhook.png" width="450" alt="Paymob Webhook" /> |
+| Main Agentic Bot (The core brain) | Paymob Webhook (Real payment confirmation) |
+
+| Paymob Link Generator | Followup Scheduler |
+| :---: | :---: |
+| <img src="screenshots/Paymob_Link_Generator.png" width="450" alt="Paymob Link Generator" /> | <img src="screenshots/Followup_Scheduler.png" width="450" alt="Followup Scheduler" /> |
+| Paymob Link Generator (Dynamic Checkout) | Followup Scheduler (Abandoned cart recovery) |
+
+| Daily Reminder | Demo Bot (Instant Booking) |
+| :---: | :---: |
+| <img src="screenshots/Daily_Reminder.png" width="450" alt="Daily Reminder" /> | <img src="screenshots/Demo_Bot_Instant_Booking.png" width="450" alt="Demo Bot" /> |
+| Daily Reminder (Cron Job) | Demo Bot (No payment required) |
+
+| Basic Bot (No Deposit) |
+| :---: |
+| <img src="screenshots/Basic_Bot_No_Deposit.png" width="450" alt="Basic Bot" /> |
+| Basic Bot (Standard booking without payments) |
+
+<br>
+
+### 2. Real User Experience (Telegram Bot)
+*Here is a real conversation flow demonstrating the Agentic AI, validation, and payment process.*
+
+| Step 1: Natural Conversation | Step 2: Payment Link |
+| :---: | :---: |
+| <img src="screenshots/Bot_review1.jpg" width="350" alt="Bot Review 1" /> | <img src="screenshots/Bot_review2.jpg" width="350" alt="Bot Review 2" /> |
+
+| Step 3: Smart Upselling | Step 4: Confirmation & Escalation |
+| :---: | :---: |
+| <img src="screenshots/Bot_review3.jpg" width="350" alt="Bot Review 3" /> | <img src="screenshots/Bot_review4.jpg" width="350" alt="Bot Review 4" /> |
+ ---
 <div align="center">
 <i>Built with a focus on reliability, security, and autonomous decision-making.</i>
 </div>
